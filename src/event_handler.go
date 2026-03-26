@@ -8,8 +8,9 @@ import (
 
 type (
 	EventHandler struct {
-		EventType reflect.Type
-		Handler   reflect.Value
+		EventType   reflect.Type
+		Handler     reflect.Value
+		ValidStatus []StateMachineStatus
 	}
 	EventTransition struct {
 		EventHandler EventHandler

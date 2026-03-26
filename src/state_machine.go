@@ -2,7 +2,6 @@ package state
 
 import (
 	"context"
-	"errors"
 	"reflect"
 	"sync"
 
@@ -27,6 +26,9 @@ func (sm *StateMachine[T]) Pub(ctx context.Context, data any) error {
 	if err != nil {
 		return err
 	}
+	if !goterators.Exist(h.EventHandler.ValidStatus, sm.Status) {
+		return ErrInvalidStatus
+	}
 	err = h.EventHandler.Call(ctx, data)
 	if err != nil {
 		return err
@@ -45,15 +47,17 @@ func (sm *StateMachine[T]) TransitionTo(s StateMachineStatus, eh EventHandler) {
 
 func When[T any, E any](
 	sm *StateMachine[T],
-	handler HandlerFn[E]) EventHandler {
+	handler HandlerFn[E],
+	validStatus ...StateMachineStatus) EventHandler {
 	eh := EventHandler{
-		EventType: reflect.TypeFor[E](),
-		Handler:   reflect.ValueOf(handler),
+		EventType:   reflect.TypeFor[E](),
+		Handler:     reflect.ValueOf(handler),
+		ValidStatus: validStatus,
 	}
 
 	for _, h := range sm.Handlers {
 		if h.EventHandler.EventType == eh.EventType {
-			panic(errors.ErrUnsupported)
+			panic(ErrHandlerAlreadyRegistered)
 		}
 	}
 

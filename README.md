@@ -1,7 +1,3 @@
-Here is a professional and comprehensive **README.md** in English for your library.
-
----
-
 # Go-State: Lightweight & Reflect-Based State Machine
 
 **Go-State** is a thread-safe, generic state machine for Go that leverages reflection to eliminate boilerplate. It allows you to dispatch events based on their types and manage state transitions with minimal friction.

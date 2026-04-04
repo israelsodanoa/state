@@ -18,15 +18,11 @@ var (
 type (
 	StateMachineStatus string
 	StateMachine       struct {
-		smmu        sync.Mutex
-		stmu        sync.Mutex
 		handlers    map[reflect.Type][]EventHandler
 		transitions map[reflect.Type]StateMachineStatus
-		state       map[reflect.Type]any
 		Status      StateMachineStatus
 	}
 	EventHandler struct {
-		sm          *StateMachine
 		handlerType reflect.Type
 		handler     reflect.Value
 	}
@@ -61,23 +57,29 @@ func (sm *StateMachine) When(handler any, status ...StateMachineStatus) {
 	if fnType.Out(0) != reflect.TypeFor[error]() {
 		panic(ErrInvalidHandlerOutput)
 	}
+	if len(status) > 1 {
+		panic(ErrInvalidHandlerArguments)
+	}
 
 	eh := EventHandler{
-		sm:          sm,
 		handlerType: e,
 		handler:     fn,
 	}
 
+	if sm.handlers == nil {
+		sm.handlers = make(map[reflect.Type][]EventHandler)
+	}
+
 	sm.handlers[e] = append(sm.handlers[e], eh)
 	if len(status) > 0 {
+		if sm.transitions == nil {
+			sm.transitions = make(map[reflect.Type]StateMachineStatus)
+		}
 		sm.transitions[e] = status[0]
 	}
 }
 
 func (sm *StateMachine) Pub(ctx context.Context, e any) error {
-	sm.smmu.Lock()
-	defer sm.smmu.Unlock()
-
 	tp := reflect.Indirect(reflect.ValueOf(e)).Type()
 	hs, ok := sm.handlers[tp]
 	if !ok {
@@ -121,31 +123,4 @@ func (sm *StateMachine) Pub(ctx context.Context, e any) error {
 	}
 
 	return err
-}
-
-func NewStateMachine() *StateMachine {
-	sm := StateMachine{
-		handlers:    make(map[reflect.Type][]EventHandler),
-		transitions: make(map[reflect.Type]StateMachineStatus),
-		state:       make(map[reflect.Type]any),
-		Status:      "initial",
-	}
-	return &sm
-}
-
-func AddState[T any](sm *StateMachine, s *T) {
-	sm.stmu.Lock()
-	defer sm.stmu.Unlock()
-	sm.state[reflect.TypeFor[T]()] = s
-}
-
-func GetState[T any](sm *StateMachine) *T {
-	sm.stmu.Lock()
-	defer sm.stmu.Unlock()
-	r := sm.state[reflect.TypeFor[T]()]
-	if r != nil {
-		return r.(*T)
-	}
-
-	return nil
 }
